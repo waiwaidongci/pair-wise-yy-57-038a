@@ -44,6 +44,9 @@ function hitTest(event: MouseEvent) {
   routes.forEach((route)=>{ route.points.forEach((point)=>{ const d=Math.hypot(point[0]/100*rect.width-x,point[1]/100*rect.height-y); if(d<distance){distance=d;closest=route} }) })
   if (distance < 45) store.selectedRouteIds = [closest.id]
 }
+function simulateChange() {
+  store.applyChange('设备', 'T-02', 'T-02 轨道区段绝缘关系调整')
+}
 onMounted(async()=>{ await nextTick(); draw(); resizeObserver=new ResizeObserver(draw); resizeObserver.observe(canvas.value!) })
 onBeforeUnmount(()=>resizeObserver?.disconnect())
 watch(()=>store.selectedCaseId, draw)
@@ -51,7 +54,7 @@ watch(()=>store.selectedRouteIds, draw, { deep:true })
 </script>
 
 <template>
-  <section class="page-head"><div><p class="eyebrow">站场与进路关系</p><h1>Canvas 站场示意</h1><p>点击进路联动设备清单和受影响用例；缩放后可检查道岔、信号机和轨道区段关系。</p></div><n-space><n-button @click="zoom=Math.max(.7,zoom-.1); draw()">缩小</n-button><span>{{Math.round(zoom*100)}}%</span><n-button @click="zoom=Math.min(1.5,zoom+.1); draw()">放大</n-button></n-space></section>
+  <section class="page-head"><div><p class="eyebrow">站场与进路关系</p><h1>Canvas 站场示意</h1><p>点击进路联动设备清单和受影响用例；设备或进路关系一变，受影响用例和证据失效重算。</p></div><n-space><n-button @click="zoom=Math.max(.7,zoom-.1); draw()">缩小</n-button><span>{{Math.round(zoom*100)}}%</span><n-button @click="zoom=Math.min(1.5,zoom+.1); draw()">放大</n-button><n-button type="warning" @click="simulateChange">模拟设备关系变更</n-button></n-space></section>
   <div class="station-grid"><article class="card canvas-card"><div class="canvas-head"><span>海州站 · 计算机联锁平面示意</span><span>实线高亮：当前用例关联进路</span></div><canvas ref="canvas" class="station-canvas" @click="hitTest" /></article>
-    <aside class="card"><div class="panel-head"><div><h2>进路关系</h2><p>点击高亮或选择用例</p></div><n-tag>{{store.selectedRouteIds.length}} 条</n-tag></div><button v-for="route in routes" :key="route.id" class="route-row" :class="{active:store.selectedRouteIds.includes(route.id)}" @click="store.selectedRouteIds=[route.id]"><i :style="{background:route.color}"></i><div><b>{{route.id}} · {{route.name}}</b><small>{{route.devices.join(' → ')}}</small></div></button><n-divider /><h3>设备变更影响</h3><n-alert v-for="item in routes.filter((route)=>store.selectedRouteIds.includes(route.id)).flatMap((route)=>route.affectedBy)" :key="item" type="warning" :title="item" class="issue" /></aside></div>
+    <aside class="card"><div class="panel-head"><div><h2>进路关系</h2><p>点击高亮或选择用例</p></div><n-tag>{{store.selectedRouteIds.length}} 条</n-tag></div><button v-for="route in routes" :key="route.id" class="route-row" :class="{active:store.selectedRouteIds.includes(route.id), affected:store.affectedRouteIds.has(route.id)}" @click="store.selectedRouteIds=[route.id]"><i :style="{background:route.color}"></i><div><b>{{route.id}} · {{route.name}}<n-tag v-if="store.affectedRouteIds.has(route.id)" size="tiny" type="warning" style="margin-left:6px">受影响</n-tag></b><small>{{route.devices.join(' → ')}}</small></div></button><n-divider /><h3>设备变更影响（按关系图推导）</h3><n-alert type="warning" :title="`${store.affectedCases.length} 条用例受影响，证据失效待重算`" :description="`受影响进路：${store.affectedRouteNames.join('、')}；变更：${store.changeDescriptions.join('、')}`" class="issue" /><n-alert v-for="item in routes.filter((route)=>store.selectedRouteIds.includes(route.id)).flatMap((route)=>route.affectedBy)" :key="item" type="warning" :title="item" class="issue" /></aside></div>
 </template>
